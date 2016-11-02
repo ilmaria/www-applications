@@ -3,7 +3,7 @@ var express = require('express')
 var app = express()
 var WebSocketServer = require('ws').Server
 
-var port = 8000
+var httpPort = 8000
 var wsPort = 8080
 
 //HTTP
@@ -13,18 +13,17 @@ app.get('/', function(req, res) {
   res.render('client/index.html')
 })
 
-app.listen(port, function() {
-  console.log('Serve listening on port %s', port)
+app.listen(httpPort, function() {
+  console.log('Serve listening on port %s', httpPort)
 })
 
 
 //Websocket
 var wsServer = new WebSocketServer({ port: wsPort });
 
-wsServer.on('connection', function connection(ws) {
-  ws.on('message', function incoming(message) {
-    console.log('received: %s', message);
+wsServer.on('connection', function(ws) {
+  ws.on('message', function(msg) {
+    console.log('Received a websocket message:\n-', JSON.parse(msg));
+    ws.send(msg)
   });
-
-  ws.send('something');
 });
