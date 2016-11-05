@@ -1,29 +1,35 @@
-var http = require('http')
-var express = require('express')
-var app = express()
-var WebSocketServer = require('ws').Server
+const http = require('http')
+const express = require('express')
+const app = express()
+const WebSocketServer = require('ws').Server
 
-var httpPort = 8000
-var wsPort = 8080
+const httpPort = 8000
+const wsPort = 8080
 
-//HTTP
+let httpClients = []
+
+// HTTP
 app.use(express.static('client'))
 
-app.get('/', function(req, res) {
+app.get('/', (req, res) => {
   res.render('client/index.html')
 })
 
-app.listen(httpPort, function() {
+app.listen(httpPort, () => {
   console.log('Serve listening on port %s', httpPort)
 })
 
 
-//Websocket
-var wsServer = new WebSocketServer({ port: wsPort });
+// Websocket
+const wsServer = new WebSocketServer({ port: wsPort })
 
-wsServer.on('connection', function(ws) {
-  ws.on('message', function(msg) {
-    console.log('Received a websocket message:\n-', JSON.parse(msg));
-    ws.send(msg)
-  });
-});
+wsServer.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    console.log('Received a websocket message:\n-', JSON.parse(message))
+
+    // broadcast message to all clients
+    for (const client of [...wsServer.clients, ...httpClients]) {
+      client.send(message)
+    }
+  })
+})

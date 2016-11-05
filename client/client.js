@@ -1,33 +1,41 @@
 var ws = new WebSocket('ws:localhost:8080')
 
-ws.onopen = function() {
-  var message = {
-    sender: 'minä',
-    msg: 'Hello there. How are you?'
-  }
-  ws.send(JSON.stringify(message))
+ws.onmessage = function(event) {
+  var chatMessage = JSON.parse(event.data)
+  displayMessage(chatMessage)
+  console.log('Received a websocket message:\n', chatMessage)
 }
 
-ws.onmessage = function(msg) {
-  var chatMsg = JSON.parse(msg.data)
-  displayMessage(chatMsg)
-}
+// Also submit messages by pressing `enter`
+document.querySelector('#chat-input')
+  .addEventListener("keyup", function(event) {
+    if (event.keyCode == 13) {
+      document.querySelector('#send-button').click();
+    }
+  })
 
 
-function displayMessage(chatMsg) {
+function displayMessage(chatMessage) {
   var li = document.createElement('li')
-  li.textContent = chatMsg.msg
+  li.textContent = chatMessage.author + ':' + ' ' + chatMessage.content
 
   var messageList = document.querySelector('#message-list')
   messageList.appendChild(li)
 }
 
 function sendMessage() {
-  var input = document.querySelector('#chat-input')
-  var msg = {
-    sender: 'minä',
-    msg: input.value
+  var chatInput = document.querySelector('#chat-input')
+  var username = document.querySelector('#username')
+
+  var message = {
+    author: username.value,
+    content: chatInput.value
   }
-  ws.send(JSON.stringify(msg))
-  input.value = ''
+
+  // websockets can only send string or blob data, so
+  // we need to turn javascript objects into string
+  ws.send(JSON.stringify(message))
+
+  // clear chat input field
+  chatInput.value = ''
 }
