@@ -10,12 +10,19 @@
   </head>
   <body>
     <h1>Chat App</h1>
+
+    <label for="username">Username</label>
+    <input id="username" type="text" placeholder="User">
+
     <ul id="message-list"></ul>
     <input id="chat-input" type="text">
     <button id="send-button" onclick="sendMessage()">Send</button>
 
-    <label for="username">Username</label>
-    <input id="username" type="text">
+    <div id="connection-info">
+      <button id="toggle-connection">Toggle connection type</button>
+      <span id="connection-type">Websocket</span>
+    </div>
+
     <script src="fetch-polyfill.js"></script>
     <script src="client.js"></script>
   </body>

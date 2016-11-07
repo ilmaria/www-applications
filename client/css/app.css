@@ -5,3 +5,18 @@ body {
 li {
   list-style: none;
 }
+
+#message-list {
+  height: 500px;
+  width: 400px;
+  overflow: auto;
+  border: 1px solid black;
+}
+
+#chat-input {
+  width: 350px;
+}
+
+#connection-info {
+  margin-top: 10px;
+}

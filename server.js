@@ -3,6 +3,7 @@ const EventEmitter = require('events').EventEmitter
 const express = require('express')
 const app = express()
 const WebSocketServer = require('ws').Server
+const bodyParser = require('body-parser')
 
 const httpPort = 8000
 const wsPort = 8080
@@ -23,6 +24,9 @@ longPollChannel.setMaxListeners(Infinity)
 //----------------------------------
 app.use(express.static('client'))
 
+// needed for parsing long poll body data 
+app.use(bodyParser.json())
+
 app.get('/', (req, res) => {
   res.render('client/index.html')
 })
@@ -36,6 +40,8 @@ app.get('/long-poll', (req, res) => {
   longPollChannel.once('message', (message) => {
     // send received message as json
     res.json(message)
+
+    console.log('Sent a long poll message:', message)
   })
 })
 
@@ -45,7 +51,7 @@ app.get('/long-poll', (req, res) => {
 app.post('/long-poll', (req, res) => {
   const message = req.body
 
-  console.log('Received a websocket message:\n-', message)
+  console.log('Received a long poll message:\n-', message)
 
   broadcast(message)
   
@@ -83,6 +89,8 @@ function broadcast(message) {
     // websockets can only send string or blob data, so
     // we need to turn javascript objects into string
     client.send(JSON.stringify(message))
+
+    console.log('Sent a websocket message:', message)
   }
 
   // send message to long poll clients
