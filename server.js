@@ -11,11 +11,16 @@ const wsPort = 8080
 const longPollChannel = new EventEmitter()
 longPollChannel.setMaxListeners(Infinity)
 
+var messagesWaitingForAcks = {};
+var messageId = 0;
+
 /**
  * Interface - Chat message
  * {
+ *   (id: int) (ID is added to the message when it reaches the server)
  *   author: string
  *   content: string
+ *   messageType: string ("msg" || "ack" || "serverAck")
  * }
  */
 
@@ -71,11 +76,25 @@ const wsServer = new WebSocketServer({ port: wsPort })
 
 wsServer.on('connection', (ws) => {
   ws.on('message', (message) => {
-    const chatMessage = JSON.parse(message)
+    var chatMessage = JSON.parse(message)
 
-    console.log('Received a websocket message:\n-', chatMessage)
+    if (chatMessage.messageType === "msg") {
+      // Add ID to the message to track when everyone has received it
+      chatMessage.id = messageId;
+      messageId += 1;
 
-    broadcast(chatMessage)
+      sendServerAckToClient(ws, chatMessage.id);
+
+      setMessageToWaitForAcks(ws, chatMessage.id);
+
+      console.log('Received a websocket message:\n-', chatMessage)
+
+      broadcast(chatMessage)
+    }
+    else if (chatMessage.messageType === "ack") {
+      console.log('Received an ack:', chatMessage);
+      handleAck(chatMessage.id);
+    }
   })
 })
 
@@ -86,6 +105,9 @@ wsServer.on('connection', (ws) => {
 function broadcast(message) {
   // send message to websocket clients
   for (const client of wsServer.clients) {
+    // Expect ack from each client the message is sent to
+    messagesWaitingForAcks[message.id].acksRemaining += 1;
+
     // websockets can only send string or blob data, so
     // we need to turn javascript objects into string
     client.send(JSON.stringify(message))
@@ -95,4 +117,42 @@ function broadcast(message) {
 
   // send message to long poll clients
   longPollChannel.emit('message', message)
+}
+
+// Notify the client that the server has received the message
+function sendServerAckToClient(client, messageId) {
+  const message = {
+    id: messageId,
+    messageType: "serverAck"
+  };
+  client.send(JSON.stringify(message));
+  console.log('Sent a server ack:', message);
+}
+
+// The information stored in messagesWaitingForAcks is to keep track 
+// of that all the clients have received the message before informing 
+// it to the sender of the message
+function setMessageToWaitForAcks(client, messageId) {
+  messagesWaitingForAcks[messageId] = {
+    sender: client,
+    acksRemaining: 0
+  };
+}
+
+// Reduce the number remaining ACKs and inform the sender if everyone 
+// has received the message
+function handleAck(messageId) {
+  messagesWaitingForAcks[messageId].acksRemaining -= 1;
+
+  if (messagesWaitingForAcks[messageId].acksRemaining === 0) {
+    const message = {
+      id: messageId,
+      messageType: "ack"
+    };
+
+    messagesWaitingForAcks[messageId].sender.send(JSON.stringify(message));
+    console.log('Sent a ack:', message);
+
+    delete messagesWaitingForAcks[messageId];
+  }
 }
