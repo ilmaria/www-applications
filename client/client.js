@@ -108,6 +108,14 @@ function LongPollConnection() {
         }),
         body: JSON.stringify(message)
       })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(responseMessage) {
+        if (responseMessage.messageType === "serverAck") {
+          console.log("Received a server ack for message: " + responseMessage.id);
+        }
+      })
     },
     onmessage: function() {},
     close: function() {

@@ -54,12 +54,23 @@ app.get('/long-poll', (req, res) => {
  * Clients use POST request for sending long poll messages.
  */
 app.post('/long-poll', (req, res) => {
-  const message = req.body
+  var message = req.body
 
-  console.log('Received a long poll message:\n-', message)
+  if (message.messageType === "msg") {
+    // Add ID to the message to track when everyone has received it
+    message.id = messageId;
+    messageId += 1;
 
-  broadcast(message)
-  
+    sendServerAckToClient(res, message.id, "long poll");
+
+    console.log('Received a long poll message:\n-', message)
+
+    broadcast(message)
+  }
+  else if (message.messageType === "ack") {
+    res.json({});
+    console.log('Received an ack:', message);
+  }
   res.status(200).end()
 })
 
@@ -83,9 +94,9 @@ wsServer.on('connection', (ws) => {
       chatMessage.id = messageId;
       messageId += 1;
 
-      sendServerAckToClient(ws, chatMessage.id);
+      sendServerAckToClient(ws, chatMessage.id, "websocket");
 
-      setMessageToWaitForAcks(ws, chatMessage.id);
+      setMessageToWaitForAcks(ws, chatMessage.id, "websocket");
 
       console.log('Received a websocket message:\n-', chatMessage)
 
@@ -120,22 +131,29 @@ function broadcast(message) {
 }
 
 // Notify the client that the server has received the message
-function sendServerAckToClient(client, messageId) {
+function sendServerAckToClient(client, messageId, connectionType) {
   const message = {
     id: messageId,
     messageType: "serverAck"
   };
-  client.send(JSON.stringify(message));
+
+  if (connectionType === "websocket") {
+    client.send(JSON.stringify(message));
+  }
+  else if (connectionType === "long poll") {
+    client.json(message);
+  }
   console.log('Sent a server ack:', message);
 }
 
 // The information stored in messagesWaitingForAcks is to keep track 
 // of that all the clients have received the message before informing 
 // it to the sender of the message
-function setMessageToWaitForAcks(client, messageId) {
+function setMessageToWaitForAcks(client, messageId, connectionType) {
   messagesWaitingForAcks[messageId] = {
     sender: client,
-    acksRemaining: 0
+    acksRemaining: 0,
+    connectionType: connectionType
   };
 }
 
