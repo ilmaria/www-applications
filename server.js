@@ -43,11 +43,27 @@ app.get('/', (req, res) => {
  */
 app.get('/long-poll', (req, res) => {
   longPollChannel.once('message', (message) => {
+    // Expect ack from each client the message is sent to
+    messagesWaitingForAcks[message.id].acksRemaining += 1;
+
     // send received message as json
     res.json(message)
 
     console.log('Sent a long poll message:', message)
   })
+})
+
+/**
+ * After server ack has been sent to the client, the client
+ * will wait for the ack that tells that all the clients 
+ * have gotten the message
+ */
+app.get('/long-poll-ack', (req, res) => {
+  longPollChannel.once('ack', (message) => {
+    if (String(req.query.id) === String(message.id)) {
+      res.json(message);
+    }
+  });
 })
 
 /**
@@ -63,13 +79,18 @@ app.post('/long-poll', (req, res) => {
 
     sendServerAckToClient(res, message.id, "long poll");
 
+    setMessageToWaitForAcks("", message.id, "long poll");
+
     console.log('Received a long poll message:\n-', message)
 
     broadcast(message)
   }
   else if (message.messageType === "ack") {
+    // Just an empty object because the client expects json in the response
     res.json({});
+
     console.log('Received an ack:', message);
+    handleAck(message.id);
   }
   res.status(200).end()
 })
@@ -146,19 +167,23 @@ function sendServerAckToClient(client, messageId, connectionType) {
   console.log('Sent a server ack:', message);
 }
 
-// The information stored in messagesWaitingForAcks is to keep track 
-// of that all the clients have received the message before informing 
-// it to the sender of the message
-function setMessageToWaitForAcks(client, messageId, connectionType) {
+/** 
+ * The information stored in messagesWaitingForAcks is to keep track 
+ * of that all the clients have received the message before informing 
+ * it to the sender of the message
+ */
+function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
   messagesWaitingForAcks[messageId] = {
-    sender: client,
+    wsClient: wsClient,
     acksRemaining: 0,
     connectionType: connectionType
   };
 }
 
-// Reduce the number remaining ACKs and inform the sender if everyone 
-// has received the message
+/** 
+ * Reduce the number remaining ACKs and inform the sender if everyone 
+ * has received the message
+ */
 function handleAck(messageId) {
   messagesWaitingForAcks[messageId].acksRemaining -= 1;
 
@@ -168,8 +193,14 @@ function handleAck(messageId) {
       messageType: "ack"
     };
 
-    messagesWaitingForAcks[messageId].sender.send(JSON.stringify(message));
-    console.log('Sent a ack:', message);
+    if (messagesWaitingForAcks[messageId].connectionType === "websocket") {
+      messagesWaitingForAcks[messageId].wsClient.send(JSON.stringify(message));
+    }
+    else if (messagesWaitingForAcks[messageId].connectionType === "long poll") {
+      longPollChannel.emit('ack', message);
+    }
+
+    console.log('Sent an ack:', message);
 
     delete messagesWaitingForAcks[messageId];
   }

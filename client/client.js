@@ -108,14 +108,24 @@ function LongPollConnection() {
         }),
         body: JSON.stringify(message)
       })
-      .then(function(response) {
-        return response.json();
-      })
-      .then(function(responseMessage) {
-        if (responseMessage.messageType === "serverAck") {
-          console.log("Received a server ack for message: " + responseMessage.id);
-        }
-      })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(responseMessage) {
+          if (responseMessage.messageType === "serverAck") {
+            console.log("Received a server ack for message: " + responseMessage.id);
+
+            fetch('/long-poll-ack?id=' + responseMessage.id)
+              .then(function(response) {
+                return response.json();
+              })
+              .then(function(ackResponseMessage) {
+                if (ackResponseMessage.messageType === "ack") {
+                  console.log("Received an ack for message: " + ackResponseMessage.id);
+                }
+              });
+          }
+        });
     },
     onmessage: function() {},
     close: function() {
