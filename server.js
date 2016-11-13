@@ -43,9 +43,6 @@ app.get('/', (req, res) => {
  */
 app.get('/long-poll', (req, res) => {
   longPollChannel.once('message', (message) => {
-    // Expect ack from each client the message is sent to
-    messagesWaitingForAcks[message.id].acksRemaining += 1;
-
     // send received message as json
     res.json(message)
 
@@ -137,9 +134,6 @@ wsServer.on('connection', (ws) => {
 function broadcast(message) {
   // send message to websocket clients
   for (const client of wsServer.clients) {
-    // Expect ack from each client the message is sent to
-    messagesWaitingForAcks[message.id].acksRemaining += 1;
-
     // websockets can only send string or blob data, so
     // we need to turn javascript objects into string
     client.send(JSON.stringify(message))
@@ -173,9 +167,11 @@ function sendServerAckToClient(client, messageId, connectionType) {
  * it to the sender of the message
  */
 function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
+  const expectedAcks = longPollChannel.listenerCount("message") + wsServer.clients.length;
+
   messagesWaitingForAcks[messageId] = {
     wsClient: wsClient,
-    acksRemaining: 0,
+    acksRemaining: expectedAcks,
     connectionType: connectionType
   };
 }
