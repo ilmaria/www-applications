@@ -188,6 +188,7 @@ function displayMessage(chatMessage) {
   var messageList = document.querySelector('#message-list')
   li.appendChild(span)
   messageList.appendChild(li)
+  messageList.scrollTop = messageList.scrollHeight;
 }
 
 function sendMessage() {
