@@ -2,8 +2,18 @@
 var connection = WebsocketConnection()
 
 connection.onmessage = function(message) {
-  console.log('Received a message:\n', message)
-  displayMessage(message)
+  if (message.messageType === "msg") {
+    sendAckToServer(message.id);
+
+    console.log('Received a message:\n', message)
+    displayMessage(message)
+  }
+  else if (message.messageType === "serverAck"){
+    console.log("Received a server ack for message: " + message.id);
+  }
+  else if (message.messageType === "ack"){
+    console.log("Received an ack for message: " + message.id);
+  }
 }
 
 // toggle connection button
@@ -98,6 +108,24 @@ function LongPollConnection() {
         }),
         body: JSON.stringify(message)
       })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(responseMessage) {
+          if (responseMessage.messageType === "serverAck") {
+            console.log("Received a server ack for message: " + responseMessage.id);
+
+            fetch('/long-poll-ack?id=' + responseMessage.id)
+              .then(function(response) {
+                return response.json();
+              })
+              .then(function(ackResponseMessage) {
+                if (ackResponseMessage.messageType === "ack") {
+                  console.log("Received an ack for message: " + ackResponseMessage.id);
+                }
+              });
+          }
+        });
     },
     onmessage: function() {},
     close: function() {
@@ -139,11 +167,21 @@ function sendMessage() {
 
   var message = {
     author: username.value || username.placeholder,
-    content: chatInput.value
+    content: chatInput.value,
+    messageType: "msg"
   }
 
   connection.send(message)
 
   // clear chat input field
   chatInput.value = ''
+}
+
+// Let the server know that the message is received
+function sendAckToServer(messageId) {
+  var message = {
+    id: messageId,
+    messageType: "ack"
+  };
+  connection.send(message);
 }
