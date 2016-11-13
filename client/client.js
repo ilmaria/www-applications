@@ -16,12 +16,17 @@ connection.onmessage = function(message) {
   }
 }
 
-// toggle connection button
-document.querySelector('#toggle-connection')
-  .addEventListener("click", function() {
-    connection = toggleConnectionType(connection)
-    document.querySelector('#connection-type').textContent = connection.type
-  })
+// Change used technology to websocket
+document.querySelector('#websocket')
+  .addEventListener("change", function(event) {
+    connection = toggleConnectionType(event.target.id);
+  });
+
+// Change used technology to long poll
+document.querySelector('#longpoll')
+  .addEventListener("change", function(event) {
+    connection = toggleConnectionType(event.target.id);
+  });
 
 // Also submit messages by pressing `enter`
 document.querySelector('#chat-input')
@@ -31,23 +36,39 @@ document.querySelector('#chat-input')
     }
   })
 
+// Also submit username by pressing `enter`
+document.querySelector('#username-input')
+  .addEventListener("keyup", function(event) {
+    if (event.keyCode == 13) {
+      document.querySelector('#save-username-button').click();
+    }
+  })
+
+// TODO: Send selected file
+document.querySelector('#select-file')
+  .addEventListener("change", function(event) {
+    var chatInput = document.querySelector('#chat-input');
+    chatInput.value = event.target.value;
+    
+  })
+
 /**
  * Close the current connection and make a new one with
  * different connection type.
  */
-function toggleConnectionType(oldConnection) {
-  var newConnection
-  oldConnection.close()
+function toggleConnectionType(newConnectionName) {
+  var newConnection;
+  connection.close();
 
-  if (oldConnection.type == 'websocket') {
-    newConnection = LongPollConnection()
+  if (newConnectionName === 'websocket') {
+    newConnection = WebsocketConnection();
   } else {
-    newConnection = WebsocketConnection()
+    newConnection = LongPollConnection();
   }
 
-  newConnection.onmessage = oldConnection.onmessage
+  newConnection.onmessage = connection.onmessage;
 
-  return newConnection
+  return newConnection;
 }
 
 /**
@@ -155,18 +176,26 @@ function LongPollConnection() {
 
 function displayMessage(chatMessage) {
   var li = document.createElement('li')
-  li.textContent = chatMessage.author + ':' + ' ' + chatMessage.content
+  var span = document.createElement('span')
+
+  span.textContent = chatMessage.author + ': ' + chatMessage.content
+
+  var username = sessionStorage.getItem('username')
+  if (chatMessage.author === username) {
+    li.className = 'own-message'
+  }
 
   var messageList = document.querySelector('#message-list')
+  li.appendChild(span)
   messageList.appendChild(li)
 }
 
 function sendMessage() {
   var chatInput = document.querySelector('#chat-input')
-  var username = document.querySelector('#username')
+  var username = sessionStorage.getItem('username')
 
   var message = {
-    author: username.value || username.placeholder,
+    author: username,
     content: chatInput.value,
     messageType: "msg"
   }
@@ -177,6 +206,12 @@ function sendMessage() {
   chatInput.value = ''
 }
 
+// Trigger file select when clicking the file select button
+function selectFile() {
+  var selectFileInput = document.querySelector('#select-file');
+  selectFileInput.click();
+}
+
 // Let the server know that the message is received
 function sendAckToServer(messageId) {
   var message = {
@@ -185,3 +220,35 @@ function sendAckToServer(messageId) {
   };
   connection.send(message);
 }
+
+// Use the username provided in URL parameters or show username dialog
+// Example URL with username: http://localhost:8000/?username=John123
+function setupUsername() {
+  var query = window.location.search.substring(1);
+  var usernameKey = "username=";
+  var indexOfUsernameQuery = query.indexOf(usernameKey);
+
+  if (indexOfUsernameQuery < 0) {
+    var usernameDialog = document.querySelector(".dialog");
+    usernameDialog.removeAttribute("hidden");
+
+    var usernameInput = document.querySelector('#username-input');
+    usernameInput.focus();
+  } else {
+    sessionStorage.setItem("username", query.substring(usernameKey.length));
+  }
+}
+
+// Save username to sessionStorage and hide username dialog
+function saveUsername() {
+  var username = document.querySelector('#username-input').value || "User";
+  sessionStorage.setItem("username", username);
+
+  var usernameDialog = document.querySelector(".dialog");
+  usernameDialog.setAttribute("hidden", "");
+
+  var chatInput = document.querySelector('#chat-input');
+  chatInput.focus();
+}
+
+setupUsername();

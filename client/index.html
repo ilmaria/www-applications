@@ -6,21 +6,66 @@
     <meta name="description" content="A chat application for the WWW Applications course.">
     <title>Chat application</title>
 
+    <link rel="stylesheet" href="bootstrap-3.3.7-dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/app.css">
   </head>
   <body>
-    <h1>Chat App</h1>
+    <div class="dialog" hidden>
+        <div class="dialog-content">
+            <div class="dialog-header">
+                <h2>Choose a username!</h2>
+            </div>
+            <div class="dialog-body">
+                <input type="text" id="username-input" class="form-control" placeholder="Username e.g. John123">
+                <button id="save-username-button" class="btn btn-primary"onclick="saveUsername()">Continue</button>
+            </div>
+        </div>
+    </div>
 
-    <label for="username">Username</label>
-    <input id="username" type="text" placeholder="User">
+    <div class="content container">
+      <div class="row">
+        <h1 class="col-xs-12">Chat App</h1>
+      </div>
 
-    <ul id="message-list"></ul>
-    <input id="chat-input" type="text">
-    <button id="send-button" onclick="sendMessage()">Send</button>
+      <div class="row">
+        <div class="col-xs-12">
+          <ul id="message-list"></ul>
+        </div>
+      </div>
 
-    <div id="connection-info">
-      <button id="toggle-connection">Toggle connection type</button>
-      <span id="connection-type">Websocket</span>
+      <div class="row">
+        <div class="col-xs-10">
+          <input class="form-control" id="chat-input" type="text" placeholder="Write a message">
+        </div>
+
+        <div class="col-xs-2">
+          <div class="row">
+            <div class="button-container col-xs-6">
+              <button class="btn btn-primary" id="send-button" onclick="sendMessage()">
+                <span class="glyphicon glyphicon-send"></span>
+              </button>
+            </div>
+
+            <div class="button-container col-xs-6">
+              <button class="btn btn-default" id="select-file-button" onclick="selectFile()">
+                <span class="glyphicon glyphicon-paperclip"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="select-file">
+      </div>
+
+      <div id="connection-info" class="row">
+        <div class="col-xs-12">
+          <label class="radio-inline">
+            <input type="radio" name="technology-options" id="websocket" checked> Websocket
+          </label>
+          <label class="radio-inline">
+            <input type="radio" name="technology-options" id="longpoll"> Long Poll
+          </label>
+        </div>
+      </div>
     </div>
 
     <script src="fetch-polyfill.js"></script>
