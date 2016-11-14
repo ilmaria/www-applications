@@ -1,22 +1,81 @@
 body {
   font-family: sans-serif;
+  background-color: #003366;
+  color: #CCCC99;
+}
+
+.dialog {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.5);
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    text-align: center;
+}
+
+.dialog-content {
+    background-color: #003366;
+    width: 50%;
+    margin: 15% auto;
+    padding: 0 20px 20px 20px;
+    border: 1px solid #CCCC99;
+    border-radius: 4px;
+}
+
+#save-username-button {
+  width: auto;
+  margin-top: 10px;
+}
+
+.content {
+  text-align: center;
 }
 
 li {
   list-style: none;
+  padding: 5px 0 5px 0;
+}
+
+li span {
+  margin: 5px;
+  padding: 5px;
+  border-radius: 4px;
+  max-width: 50%;
+  background-color: #CCCCCC;
+  color: #003366;
+}
+
+.own-message {
+  text-align: right;
+}
+
+.own-message span {
+  background-color: #CCCC99;
 }
 
 #message-list {
   height: 500px;
-  width: 400px;
   overflow: auto;
-  border: 1px solid black;
+  background-color:  #FFFFFF;
+  border: 1px solid #CCCC99;
+  border-radius: 4px;
+  text-align: left;
+  padding: 0 20px 0 20px;
+  font-size: 1.5em;
 }
 
-#chat-input {
-  width: 350px;
+.button-container {
+  padding: 0 15px 0 0;
+}
+
+.btn {
+  width: 100%;
+}
+
+#select-file {
+  display: none;
 }
 
 #connection-info {
-  margin-top: 10px;
+  float: right;
 }
