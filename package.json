@@ -4,11 +4,16 @@
   "description": "",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "stress-ws": "artillery quick -o artillery_test_results.json -p \"{\\\"author\\\": \\\"username\\\", \\\"content\\\": \\\"message content\\\", \\\"messageType\\\": \\\"msg\\\"}\" ws://localhost:8080",
+    "stress-http": "artillery quick -o artillery_test_results.json -p \"{\\\"author\\\": \\\"username\\\", \\\"content\\\": \\\"message content\\\", \\\"messageType\\\": \\\"msg\\\"}\" -t \"application/json\" http://localhost:8000/long-poll"
   },
   "dependencies": {
     "body-parser": "^1.15.2",
     "express": "^4.14.0",
     "ws": "^1.1.1"
+  },
+  "devDependencies": {
+    "artillery": "^1.5.0-17"
   }
 }

@@ -105,8 +105,15 @@ const wsServer = new WebSocketServer({ port: wsPort })
 
 wsServer.on('connection', (ws) => {
   ws.on('message', (message) => {
-    var chatMessage = JSON.parse(message)
-
+    let chatMessage
+    
+    try {
+      chatMessage = JSON.parse(message)
+    } catch (err) {
+      console.log('Error while parsing a websocket message:', err)
+      return
+    }
+    
     if (chatMessage.messageType === "msg") {
       // Add ID to the message to track when everyone has received it
       chatMessage.id = messageId;
@@ -134,11 +141,16 @@ wsServer.on('connection', (ws) => {
 function broadcast(message) {
   // send message to websocket clients
   for (const client of wsServer.clients) {
-    // websockets can only send string or blob data, so
-    // we need to turn javascript objects into string
-    client.send(JSON.stringify(message))
+    try {
+      // websockets can only send string or blob data, so
+      // we need to turn javascript objects into string
+      client.send(JSON.stringify(message))
 
-    console.log('Sent a websocket message:', message)
+      console.log('Sent a websocket message:', message)
+    } catch (err) {
+      console.log('Error while sending a websocket message:', err)
+    }
+    
   }
 
   // send message to long poll clients
