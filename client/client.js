@@ -1,18 +1,28 @@
 // websocket connection is default
 var connection = WebsocketConnection()
+var fileInfos = [];
 
-connection.onmessage = function(message) {
-  if (message.messageType === "msg") {
-    sendAckToServer(message.id);
+connection.onmessage = function(message, contentType) {
+  if (contentType === "file") {
+    displayFile(message);
+  }
+  else {
+    if (message.messageType === "msg") {
+      sendAckToServer(message.id);
 
-    console.log('Received a message:\n', message)
-    displayMessage(message)
-  }
-  else if (message.messageType === "serverAck"){
-    console.log("Received a server ack for message: " + message.id);
-  }
-  else if (message.messageType === "ack"){
-    console.log("Received an ack for message: " + message.id);
+      console.log('Received a message:\n', message)
+      displayMessage(message)
+    }
+    else if (message.messageType === "fileInfo") {
+      console.log('Received file information:\n', message);
+      storeFileInfo(message);
+    }
+    else if (message.messageType === "serverAck") {
+      console.log("Received a server ack for message: " + message.id);
+    }
+    else if (message.messageType === "ack") {
+      console.log("Received an ack for message: " + message.id);
+    }
   }
 }
 
@@ -44,12 +54,10 @@ document.querySelector('#username-input')
     }
   })
 
-// TODO: Send selected file
+// Send selected file
 document.querySelector('#select-file')
   .addEventListener("change", function(event) {
-    var chatInput = document.querySelector('#chat-input');
-    chatInput.value = event.target.value;
-    
+    sendFile(event.target.files[0]);
   })
 
 /**
@@ -86,9 +94,12 @@ function WebsocketConnection() {
   
   var connection = {
     send: function(message) {
-      // websockets can only send string or blob data, so
-      // we need to turn javascript objects into string
-      ws.send(JSON.stringify(message))
+      if (message instanceof Blob === false) {
+        // websockets can only send string or blob data, so
+        // we need to turn javascript objects into string
+        message = JSON.stringify(message);
+      }
+      ws.send(message);
     },
     onmessage: function() {},
     close: ws.close.bind(ws),
@@ -96,14 +107,22 @@ function WebsocketConnection() {
   }
   
   // do this because websocket onmessage receives an event object
-  // with the message in data property (also, message is in string format)
+  // with the message in data property (also, message is in string format
+  // and file is a blob object)
   ws.onmessage = function(event) {
-    var message = JSON.parse(event.data)
+    var contentType = "file";
+    var message = event.data;
 
-    // augment message with connection type for debugging purposes
-    message.connectionType = 'websocket'
+    if (typeof(event.data) === "string") {
+      message = JSON.parse(event.data);
 
-    connection.onmessage(message)
+      // augment message with connection type for debugging purposes
+      message.connectionType = 'websocket'
+
+      contentType = "text";
+    }
+
+    connection.onmessage(message, contentType);
   }
 
   return connection
@@ -191,6 +210,40 @@ function displayMessage(chatMessage) {
   messageList.scrollTop = messageList.scrollHeight;
 }
 
+function displayFile(file) {
+  if (fileInfos.length > 0) {
+    var fileInfo = fileInfos[0];
+    sendAckToServer(fileInfo.id);
+
+    var li = document.createElement('li');
+    var span = document.createElement('span');
+    var a = document.createElement('a');
+
+    var url = window.URL.createObjectURL(file);
+    a.href = url;
+    a.textContent = fileInfo.author + ': ' + fileInfo.content;
+    a.download = fileInfo.content;
+
+    var username = sessionStorage.getItem('username');
+    if (fileInfo.author === username) {
+      li.className = 'own-message'
+    }
+
+    var messageList = document.querySelector('#message-list');
+    span.appendChild(a);
+    li.appendChild(span);
+    messageList.appendChild(li);
+    messageList.scrollTop = messageList.scrollHeight;
+
+    fileInfos.shift();
+  }
+}
+
+
+function storeFileInfo(fileInfo) {
+  fileInfos.push(fileInfo);
+}
+
 function sendMessage() {
   var chatInput = document.querySelector('#chat-input')
   var username = sessionStorage.getItem('username')
@@ -205,6 +258,26 @@ function sendMessage() {
 
   // clear chat input field
   chatInput.value = ''
+}
+
+// Send a message and a file as blob. The message contains the file name and author
+function sendFile(file) {
+  var username = sessionStorage.getItem('username');
+
+  var message = {
+    author: username,
+    content: file.name,
+    messageType: "fileInfo"
+  };
+
+  connection.send(message);
+
+  reader = new FileReader();
+  reader.onload = function(event) {
+    var blobFile = new Blob([event.target.result], {type : file.type});
+    connection.send(blobFile);
+  }
+  reader.readAsBinaryString(file);
 }
 
 // Trigger file select when clicking the file select button
