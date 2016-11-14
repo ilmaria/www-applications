@@ -84,12 +84,34 @@ app.post('/long-poll', (req, res) => {
 
     broadcast(message)
   }
+  else if (message.messageType === "fileInfo") {
+    fileInfos.push(message);
+    res.json({});
+  }
   else if (message.messageType === "ack") {
     // Just an empty object because the client expects json in the response
     res.json({});
 
     console.log('Received an ack:', message);
     handleAck(message.id);
+  }
+  else {
+    if (fileInfos.length > 0) {
+      var fileInfo = fileInfos[0];
+
+      // Add ID to the message to track when everyone has received it
+      fileInfo.id = messageId;
+      messageId += 1;
+
+      sendServerAckToClient(res, fileInfo.id, "long poll");
+
+      setMessageToWaitForAcks("", fileInfo.id, "long poll");
+
+      broadcast(fileInfo);
+      broadcastFile(message);
+
+      fileInfos.shift();
+    }
   }
   res.status(200).end()
 })
@@ -179,6 +201,9 @@ function broadcastFile(file) {
 
     console.log('Sent a websocket file:', file);
   }
+
+  // send file to long poll clients
+  longPollChannel.emit('message', file);
 }
 
 // Notify the client that the server has received the message

@@ -141,12 +141,23 @@ function WebsocketConnection() {
 function LongPollConnection() {
   var connection = {
     send: function(message) {
+      var contentType = 'application/json';
+
+      if (message instanceof Blob === false) {
+        message = JSON.stringify(message);
+      } else {
+        var fd = new FormData();
+        fd.append('file', message, "file.txt");
+        contentType = '';
+        message = fd;
+      }
+
       fetch('/long-poll', {
         method: 'post',
         headers: new Headers({
-          'Content-Type': 'application/json'
+          'Content-Type': contentType
         }),
-        body: JSON.stringify(message)
+        body: message
       })
         .then(function(response) {
           return response.json();
@@ -277,7 +288,7 @@ function sendFile(file) {
     var blobFile = new Blob([event.target.result], {type : file.type});
     connection.send(blobFile);
   }
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
 }
 
 // Trigger file select when clicking the file select button
