@@ -1,6 +1,8 @@
 // websocket connection is default
 var connection = WebsocketConnection()
 var fileInfos = [];
+var time = 0;
+var interval;
 
 connection.onmessage = function(message, contentType) {
   if (contentType === "file") {
@@ -18,10 +20,12 @@ connection.onmessage = function(message, contentType) {
       storeFileInfo(message);
     }
     else if (message.messageType === "serverAck") {
-      console.log("Received a server ack for message: " + message.id);
+      updateServerAck(time);
+      console.log("Received a server ack in: " + time + "ms");
     }
     else if (message.messageType === "ack") {
-      console.log("Received an ack for message: " + message.id);
+      updateClientAck(time);
+      console.log("Received a client ack in: " + time + "ms");
     }
   }
 }
@@ -99,6 +103,7 @@ function WebsocketConnection() {
         // we need to turn javascript objects into string
         message = JSON.stringify(message);
       }
+
       ws.send(message);
     },
     onmessage: function() {},
@@ -164,7 +169,8 @@ function LongPollConnection() {
         })
         .then(function(responseMessage) {
           if (responseMessage.messageType === "serverAck") {
-            console.log("Received a server ack for message: " + responseMessage.id);
+            updateServerAck(time);
+            console.log("Received a server ack in: " + time + "ms");
 
             fetch('/long-poll-ack?id=' + responseMessage.id)
               .then(function(response) {
@@ -172,7 +178,8 @@ function LongPollConnection() {
               })
               .then(function(ackResponseMessage) {
                 if (ackResponseMessage.messageType === "ack") {
-                  console.log("Received an ack for message: " + ackResponseMessage.id);
+                  updateClientAck(time);
+                  console.log("Received a client ack in: " + time + "ms");
                 }
               });
           }
@@ -265,6 +272,8 @@ function sendMessage() {
     messageType: "msg"
   }
 
+  startStopwatch();
+
   connection.send(message)
 
   // clear chat input field
@@ -280,6 +289,8 @@ function sendFile(file) {
     content: file.name,
     messageType: "fileInfo"
   };
+
+  startStopwatch();
 
   connection.send(message);
 
@@ -334,6 +345,32 @@ function saveUsername() {
 
   var chatInput = document.querySelector('#chat-input');
   chatInput.focus();
+}
+
+function initializeStopwatch() {
+  updateServerAck("-");
+  updateClientAck("-");
+
+  clearInterval(interval);
+  time = 0;
+}
+
+function startStopwatch() {
+  initializeStopwatch();
+
+  interval = setInterval(function() {
+    time += 1;
+  }, 1);
+}
+
+function updateServerAck(value) {
+  var serverAck = document.querySelector('#server-ack');
+  serverAck.textContent = value + "ms";
+}
+
+function updateClientAck(value) {
+  var clientAck = document.querySelector('#client-ack');
+  clientAck.textContent = value + " ms";
 }
 
 setupUsername();
