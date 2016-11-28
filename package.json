@@ -4,8 +4,8 @@
   "description": "",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "stress-ws": "artillery quick -o artillery_test_results.json -p \"{\\\"author\\\": \\\"username\\\", \\\"content\\\": \\\"message content\\\", \\\"messageType\\\": \\\"msg\\\"}\" ws://localhost:8080",
+    "start": "node server/server.js",
+    "stress-ws": "node server/stress-tester.js",
     "stress-http": "artillery quick -o artillery_test_results.json -p \"{\\\"author\\\": \\\"username\\\", \\\"content\\\": \\\"message content\\\", \\\"messageType\\\": \\\"msg\\\"}\" -t \"application/json\" http://localhost:8000/long-poll"
   },
   "dependencies": {

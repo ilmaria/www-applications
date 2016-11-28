@@ -29,7 +29,7 @@ var messageId = 0;
 //----------------------------------
 app.use(express.static('client'))
 
-// needed for parsing long poll body data 
+// needed for parsing long poll body data
 app.use(bodyParser.json())
 
 app.get('/', (req, res) => {
@@ -52,7 +52,7 @@ app.get('/long-poll', (req, res) => {
 
 /**
  * After server ack has been sent to the client, the client
- * will wait for the ack that tells that all the clients 
+ * will wait for the ack that tells that all the clients
  * have gotten the message
  */
 app.get('/long-poll-ack', (req, res) => {
@@ -106,14 +106,14 @@ const wsServer = new WebSocketServer({ port: wsPort })
 wsServer.on('connection', (ws) => {
   ws.on('message', (message) => {
     let chatMessage
-    
+
     try {
       chatMessage = JSON.parse(message)
     } catch (err) {
       console.log('Error while parsing a websocket message:', err)
       return
     }
-    
+
     if (chatMessage.messageType === "msg") {
       // Add ID to the message to track when everyone has received it
       chatMessage.id = messageId;
@@ -146,11 +146,11 @@ function broadcast(message) {
       // we need to turn javascript objects into string
       client.send(JSON.stringify(message))
 
-      console.log('Sent a websocket message:', message)
+      //console.log('Sent a websocket message:', message)
     } catch (err) {
       console.log('Error while sending a websocket message:', err)
     }
-    
+
   }
 
   // send message to long poll clients
@@ -173,9 +173,9 @@ function sendServerAckToClient(client, messageId, connectionType) {
   console.log('Sent a server ack:', message);
 }
 
-/** 
- * The information stored in messagesWaitingForAcks is to keep track 
- * of that all the clients have received the message before informing 
+/**
+ * The information stored in messagesWaitingForAcks is to keep track
+ * of that all the clients have received the message before informing
  * it to the sender of the message
  */
 function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
@@ -188,8 +188,8 @@ function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
   };
 }
 
-/** 
- * Reduce the number remaining ACKs and inform the sender if everyone 
+/**
+ * Reduce the number remaining ACKs and inform the sender if everyone
  * has received the message
  */
 function handleAck(messageId) {
