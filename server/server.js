@@ -123,12 +123,12 @@ wsServer.on('connection', (ws) => {
 
       setMessageToWaitForAcks(ws, chatMessage.id, "websocket");
 
-      console.log('Received a websocket message:\n-', chatMessage)
+      //console.log('Received a websocket message:\n-', chatMessage)
 
       broadcast(chatMessage)
     }
     else if (chatMessage.messageType === "ack") {
-      console.log('Received an ack:', chatMessage);
+      //console.log('Received an ack:', chatMessage);
       handleAck(chatMessage.id);
     }
   })
@@ -170,7 +170,7 @@ function sendServerAckToClient(client, messageId, connectionType) {
   else if (connectionType === "long poll") {
     client.json(message);
   }
-  console.log('Sent a server ack:', message);
+  //console.log('Sent a server ack:', message);
 }
 
 /**
@@ -208,7 +208,7 @@ function handleAck(messageId) {
       longPollChannel.emit('ack', message);
     }
 
-    console.log('Sent an ack:', message);
+    //console.log('Sent an ack:', message);
 
     delete messagesWaitingForAcks[messageId];
   }

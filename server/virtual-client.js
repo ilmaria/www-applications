@@ -27,26 +27,23 @@ class VirtualClient {
           }, 1000)
         })
 
-        ws.on('message', (msg) => {
-          const message = JSON.parse(msg)
-
+        ws.on('message', (message) => {
+          const msg = JSON.parse(message)
           if (msg.messageType === "msg") {
             this.sendAck(ws, msg.id)
           } else if (msg.messageType === 'ack') {
             const timeDiff = process.hrtime(this.timer)
-            // Time in microseconds
-            this.ackTime = timeDiff[0] * 1e6 + timeDiff[1] / 1e3
-            console.log('avg3')
+            // Time in milliseconds
+            this.ackTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
 
             resolve({
               ackTime: this.ackTime,
               serverAckTime: this.serverAckTime
             })
           } else if (msg.messageType === 'serverAck') {
-            console.log('avg4')
             const timeDiff = process.hrtime(this.timer)
-            // Time in microseconds
-            this.serverAckTime = timeDiff[0] * 1e6 + timeDiff[1] / 1e3
+            // Time in milliseconds
+            this.serverAckTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
           }
         })
       })

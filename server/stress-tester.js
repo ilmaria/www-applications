@@ -2,21 +2,29 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const VirtualClient = require('./virtual-client')
 
-const clientsPerCPUCore = 1
+const clientsPerCPUCore = 20
 
 if (cluster.isMaster) {
   // Fork workers.
+  console.log(`Spawning ${numCPUs} clients...`)
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork()
   }
 
+  let messages = 0
+
   cluster.on('message', (worker, data) => {
-    console.log(`Ack time for worker ${worker.process.id}:`, data.avgAckTime)
-    console.log(`Server ack time for worker ${worker.process.id}:`, data.avgServerAckTime)
+    console.log(`<worker ${worker.id}>`)
+    console.log(` - Ack time        ${data.avgAckTime.toFixed(2)}ms`)
+    console.log(` - Server ack time ${data.avgServerAckTime.toFixed(2)}ms`)
+
+    if (++messages === numCPUs) {
+      process.exit()
+    }
   })
 
   cluster.on('exit', function(worker, code, signal) {
-    console.log('worker ' + worker.process.pid + ' died')
+    console.log('<worker ' + worker.id + '> died')
   })
 } else {
   let totalAckTime = 0
@@ -28,7 +36,6 @@ if (cluster.isMaster) {
     const client = new VirtualClient(cluster.worker.id * clientsPerCPUCore + i)
 
     let clientDone = client.waitUntilDone().then(({ackTime, serverAckTime}) => {
-      console.log('avg1')
       totalAckTime += ackTime
       totalServerAckTime += serverAckTime
     })
@@ -37,7 +44,6 @@ if (cluster.isMaster) {
   }
 
   Promise.all(clientsDone).then(() => {
-    console.log('avg2')
     // Send results to master
     process.send({
       avgAckTime: totalAckTime / clientsPerCPUCore,
