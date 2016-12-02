@@ -85,7 +85,7 @@ app.post('/long-poll', (req, res) => {
     broadcast(message)
   }
   else if (message.messageType === "fileInfo") {
-    fileInfos.push(message);
+    //fileInfos.push(message);
     res.json({});
   }
   else if (message.messageType === "ack") {
@@ -96,7 +96,7 @@ app.post('/long-poll', (req, res) => {
     handleAck(message.id);
   }
   else {
-    if (fileInfos.length > 0) {
+    /*if (fileInfos.length > 0) {
       var fileInfo = fileInfos[0];
 
       // Add ID to the message to track when everyone has received it
@@ -111,7 +111,8 @@ app.post('/long-poll', (req, res) => {
       broadcastFile(message);
 
       fileInfos.shift();
-    }
+    }*/
+    res.json({});
   }
   res.status(200).end()
 })
