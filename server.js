@@ -14,13 +14,15 @@ longPollChannel.setMaxListeners(Infinity)
 var messagesWaitingForAcks = {};
 var messageId = 0;
 
+var fileInfos = [];
+
 /**
  * Interface - Chat message
  * {
  *   (id: int) (ID is added to the message when it reaches the server)
  *   author: string
  *   content: string
- *   messageType: string ("msg" || "ack" || "serverAck")
+ *   messageType: string ("msg" || "fileInfo" || "ack" || "serverAck")
  * }
  */
 
@@ -82,12 +84,35 @@ app.post('/long-poll', (req, res) => {
 
     broadcast(message)
   }
+  else if (message.messageType === "fileInfo") {
+    //fileInfos.push(message);
+    res.json({});
+  }
   else if (message.messageType === "ack") {
     // Just an empty object because the client expects json in the response
     res.json({});
 
     console.log('Received an ack:', message);
     handleAck(message.id);
+  }
+  else {
+    /*if (fileInfos.length > 0) {
+      var fileInfo = fileInfos[0];
+
+      // Add ID to the message to track when everyone has received it
+      fileInfo.id = messageId;
+      messageId += 1;
+
+      sendServerAckToClient(res, fileInfo.id, "long poll");
+
+      setMessageToWaitForAcks("", fileInfo.id, "long poll");
+
+      broadcast(fileInfo);
+      broadcastFile(message);
+
+      fileInfos.shift();
+    }*/
+    res.json({});
   }
   res.status(200).end()
 })
@@ -105,25 +130,51 @@ const wsServer = new WebSocketServer({ port: wsPort })
 
 wsServer.on('connection', (ws) => {
   ws.on('message', (message) => {
-    var chatMessage = JSON.parse(message)
+    if (typeof(message) === "object") {
+      if (fileInfos.length > 0) {
+        var fileInfo = fileInfos[0];
 
-    if (chatMessage.messageType === "msg") {
-      // Add ID to the message to track when everyone has received it
-      chatMessage.id = messageId;
-      messageId += 1;
+        // Add ID to the message to track when everyone has received it
+        fileInfo.id = messageId;
+        messageId += 1;
 
-      sendServerAckToClient(ws, chatMessage.id, "websocket");
+        sendServerAckToClient(ws, fileInfo.id, "websocket");
 
-      setMessageToWaitForAcks(ws, chatMessage.id, "websocket");
+        setMessageToWaitForAcks(ws, fileInfo.id, "websocket");
 
-      console.log('Received a websocket message:\n-', chatMessage)
+        broadcast(fileInfo);
+        broadcastFile(message);
 
-      broadcast(chatMessage)
+        fileInfos.shift();
+      }
+
     }
-    else if (chatMessage.messageType === "ack") {
-      console.log('Received an ack:', chatMessage);
-      handleAck(chatMessage.id);
+    else {
+      var chatMessage = JSON.parse(message)
+
+      if (chatMessage.messageType === "msg") {
+        // Add ID to the message to track when everyone has received it
+        chatMessage.id = messageId;
+        messageId += 1;
+
+        sendServerAckToClient(ws, chatMessage.id, "websocket");
+
+        setMessageToWaitForAcks(ws, chatMessage.id, "websocket");
+
+        console.log('Received a websocket message:\n-', chatMessage)
+
+        broadcast(chatMessage)
+      }
+      else if (chatMessage.messageType === "fileInfo") {
+        // Store file information to an array until the file is received
+        fileInfos.push(chatMessage);
+      }
+      else if (chatMessage.messageType === "ack") {
+        console.log('Received an ack:', chatMessage);
+        handleAck(chatMessage.id);
+      }
     }
+
   })
 })
 
@@ -143,6 +194,17 @@ function broadcast(message) {
 
   // send message to long poll clients
   longPollChannel.emit('message', message)
+}
+
+function broadcastFile(file) {
+  for (const client of wsServer.clients) {
+    client.send(file);
+
+    console.log('Sent a websocket file:', file);
+  }
+
+  // send file to long poll clients
+  longPollChannel.emit('message', file);
 }
 
 // Notify the client that the server has received the message

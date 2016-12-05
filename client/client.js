@@ -1,56 +1,58 @@
 // websocket connection is default
-var connection = WebsocketConnection()
+var connection = WebsocketConnection();
+var fileInfos = [];
 
 connection.onmessage = function(message) {
   if (message.messageType === "msg") {
     sendAckToServer(message.id);
 
-    console.log('Received a message:\n', message)
+    console.log("Received a message:\n", message);
     displayMessage(message)
   }
-  else if (message.messageType === "serverAck"){
-    console.log("Received a server ack for message: " + message.id);
+  else if (message.messageType === "serverAck") {
+    console.log("Received a server ack:\n", message);
   }
-  else if (message.messageType === "ack"){
-    console.log("Received an ack for message: " + message.id);
+  else if (message.messageType === "ack") {
+    console.log("Received a client ack:\n", message);
+  }
+  else if (message.messageType === "fileInfo") {
+    console.log("Received file information:\n", message);
+    storeFileInfo(message);
+  }
+  else {
+    console.log("Received a file:\n", message);
+    displayFile(message);
   }
 }
 
 // Change used technology to websocket
-document.querySelector('#websocket')
-  .addEventListener("change", function(event) {
-    connection = toggleConnectionType(event.target.id);
-  });
+$("#websocket").on("change", function(event) {
+  connection = toggleConnectionType(event.target.id);
+});
 
 // Change used technology to long poll
-document.querySelector('#longpoll')
-  .addEventListener("change", function(event) {
-    connection = toggleConnectionType(event.target.id);
-  });
+$("#longpoll").on("change", function(event) {
+  connection = toggleConnectionType(event.target.id);
+});
 
 // Also submit messages by pressing `enter`
-document.querySelector('#chat-input')
-  .addEventListener("keyup", function(event) {
-    if (event.keyCode == 13) {
-      document.querySelector('#send-button').click();
-    }
-  })
+$('#chat-input').on("keyup", function(event) {
+  if (event.keyCode === 13) {
+    $("#send-button").click();
+  }
+});
 
 // Also submit username by pressing `enter`
-document.querySelector('#username-input')
-  .addEventListener("keyup", function(event) {
-    if (event.keyCode == 13) {
-      document.querySelector('#save-username-button').click();
-    }
-  })
+$("#username-input").on("keyup", function(event) {
+  if (event.keyCode === 13) {
+    $("#save-username-button").click();
+  }
+});
 
-// TODO: Send selected file
-document.querySelector('#select-file')
-  .addEventListener("change", function(event) {
-    var chatInput = document.querySelector('#chat-input');
-    chatInput.value = event.target.value;
-    
-  })
+// Send selected file
+$("#select-file").on("change", function(event) {
+  sendFile(event.target.files[0]);
+});
 
 /**
  * Close the current connection and make a new one with
@@ -60,7 +62,7 @@ function toggleConnectionType(newConnectionName) {
   var newConnection;
   connection.close();
 
-  if (newConnectionName === 'websocket') {
+  if (newConnectionName === "websocket") {
     newConnection = WebsocketConnection();
   } else {
     newConnection = LongPollConnection();
@@ -82,31 +84,37 @@ function toggleConnectionType(newConnectionName) {
  *                                  ('websocket' or 'long poll').
  */
 function WebsocketConnection() {
-  var ws = new WebSocket('ws:localhost:8080')
+  var ws = new WebSocket("ws:localhost:8080")
   
   var connection = {
     send: function(message) {
-      // websockets can only send string or blob data, so
-      // we need to turn javascript objects into string
-      ws.send(JSON.stringify(message))
+      if (message instanceof Blob === false) {
+        // websockets can only send string or blob data, so
+        // we need to turn javascript objects into string
+        message = JSON.stringify(message);
+      }
+
+      ws.send(message);
     },
     onmessage: function() {},
     close: ws.close.bind(ws),
-    type: 'websocket'
+    type: "websocket"
   }
   
   // do this because websocket onmessage receives an event object
-  // with the message in data property (also, message is in string format)
+  // with the message in data property (also, message is in string format
+  // and file is a blob object)
   ws.onmessage = function(event) {
-    var message = JSON.parse(event.data)
+    var message = event.data;
 
-    // augment message with connection type for debugging purposes
-    message.connectionType = 'websocket'
+    if (typeof(message) === "string") {
+      message = JSON.parse(message);
+    }
 
-    connection.onmessage(message)
+    connection.onmessage(message);
   }
 
-  return connection
+  return connection;
 }
 
 /**
@@ -122,95 +130,138 @@ function WebsocketConnection() {
 function LongPollConnection() {
   var connection = {
     send: function(message) {
-      fetch('/long-poll', {
-        method: 'post',
+      fetch("/long-poll", {
+        method: "post",
         headers: new Headers({
-          'Content-Type': 'application/json'
+          'Content-Type': "application/json"
         }),
         body: JSON.stringify(message)
       })
         .then(function(response) {
           return response.json();
         })
-        .then(function(responseMessage) {
-          if (responseMessage.messageType === "serverAck") {
-            console.log("Received a server ack for message: " + responseMessage.id);
+        .then(function(serverAckResponse) {
+          if (serverAckResponse.messageType === "serverAck") {
+            console.log("Received a server ack:\n", serverAckResponse);
 
-            fetch('/long-poll-ack?id=' + responseMessage.id)
+            fetch("/long-poll-ack?id=" + serverAckResponse.id)
               .then(function(response) {
                 return response.json();
               })
-              .then(function(ackResponseMessage) {
-                if (ackResponseMessage.messageType === "ack") {
-                  console.log("Received an ack for message: " + ackResponseMessage.id);
+              .then(function(clientAckResponse) {
+                if (clientAckResponse.messageType === "ack") {
+                  console.log("Received a client ack:\n", clientAckResponse);
                 }
+              })
+              .catch(function(e) {
+                console.log("Failed to receive client ack for message: " + serverAckResponse.id);
               });
           }
         });
     },
     onmessage: function() {},
     close: function() {
-      longPollLoop = function() {}
+      // Cancel all pending requests http requests
+      window.stop();
     },
-    type: 'long poll'
+    type: "long poll"
   }
 
   var longPollLoop = function() {
-    fetch('/long-poll')
+    fetch("/long-poll")
       .then(function(response) {
-        return response.json()
+        return response.json();
       })
       .then(function(message) {
-        // augment message with connection type for debugging purposes
-        message.connectionType = 'long poll'
-
-        connection.onmessage(message)
+        connection.onmessage(message);
       })
-      .then(longPollLoop)
+      .then(longPollLoop);
   }
 
-  longPollLoop()
+  longPollLoop();
 
-  return connection
+  return connection;
 }
 
 function displayMessage(chatMessage) {
-  var li = document.createElement('li')
-  var span = document.createElement('span')
-
-  span.textContent = chatMessage.author + ': ' + chatMessage.content
-
-  var username = sessionStorage.getItem('username')
+  var ownMessageClass = "";
+  var username = sessionStorage.getItem("username");
   if (chatMessage.author === username) {
-    li.className = 'own-message'
+    ownMessageClass = "own-message";
   }
 
-  var messageList = document.querySelector('#message-list')
-  li.appendChild(span)
-  messageList.appendChild(li)
-  messageList.scrollTop = messageList.scrollHeight;
+  $("#message-list").append(
+    $("<li>", {class: ownMessageClass}).append(
+      $("<span>").text(chatMessage.author + ": " + chatMessage.content)
+    )
+  ).scrollTop($("#message-list")[0].scrollHeight);
+}
+
+function displayFile(file) {
+  if (fileInfos.length > 0) {
+    var fileInfo = fileInfos[0];
+    sendAckToServer(fileInfo.id);
+
+    var ownMessageClass = "";
+    var username = sessionStorage.getItem("username");
+    if (fileInfo.author === username) {
+      ownMessageClass = "own-message";
+    }
+
+    var url = window.URL.createObjectURL(file);
+
+    $("#message-list").append(
+      $("<li>", {class: ownMessageClass}).append(
+        $("<span>")
+          .text(fileInfo.author + ": ")
+          .append($("<a>", {href: url, download: fileInfo.content}).text(fileInfo.content))
+      )
+    ).scrollTop($("#message-list")[0].scrollHeight);
+
+    fileInfos.shift();
+  }
+}
+
+function storeFileInfo(fileInfo) {
+  fileInfos.push(fileInfo);
 }
 
 function sendMessage() {
-  var chatInput = document.querySelector('#chat-input')
-  var username = sessionStorage.getItem('username')
-
   var message = {
-    author: username,
-    content: chatInput.value,
+    author: sessionStorage.getItem("username"),
+    content: $("#chat-input").val(),
     messageType: "msg"
   }
 
-  connection.send(message)
+  connection.send(message);
 
   // clear chat input field
-  chatInput.value = ''
+  $("#chat-input").val("");
+}
+
+// Send a message and a file as blob. The message contains the file name and author
+function sendFile(file) {
+  var username = sessionStorage.getItem("username");
+
+  var message = {
+    author: username,
+    content: file.name,
+    messageType: "fileInfo"
+  };
+
+  connection.send(message);
+
+  reader = new FileReader();
+  reader.onload = function(event) {
+    var blobFile = new Blob([event.target.result], {type : file.type});
+    connection.send(blobFile);
+  }
+  reader.readAsArrayBuffer(file);
 }
 
 // Trigger file select when clicking the file select button
 function selectFile() {
-  var selectFileInput = document.querySelector('#select-file');
-  selectFileInput.click();
+  $("#select-file").click();
 }
 
 // Let the server know that the message is received
@@ -230,26 +281,21 @@ function setupUsername() {
   var indexOfUsernameQuery = query.indexOf(usernameKey);
 
   if (indexOfUsernameQuery < 0) {
-    var usernameDialog = document.querySelector(".dialog");
-    usernameDialog.removeAttribute("hidden");
-
-    var usernameInput = document.querySelector('#username-input');
-    usernameInput.focus();
+    sessionStorage.setItem("username", "Anonymous");
+    $("#usernameModal").modal("show");
+    $("#username-input").focus();
   } else {
     sessionStorage.setItem("username", query.substring(usernameKey.length));
+    $("#chat-input").focus();
   }
 }
 
 // Save username to sessionStorage and hide username dialog
 function saveUsername() {
-  var username = document.querySelector('#username-input').value || "User";
-  sessionStorage.setItem("username", username);
+  sessionStorage.setItem("username", $("#username-input").val());
 
-  var usernameDialog = document.querySelector(".dialog");
-  usernameDialog.setAttribute("hidden", "");
-
-  var chatInput = document.querySelector('#chat-input');
-  chatInput.focus();
+  $(".dialog").hide();
+  $("#chat-input").focus();
 }
 
 setupUsername();
