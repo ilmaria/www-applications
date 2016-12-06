@@ -1,7 +1,7 @@
 const WebSocket = require('ws')
 const serverAddress = 'ws://localhost:8080'
 
-class VirtualClient {
+class WsClient {
   constructor(id) {
     this.id = id
     this.timer = null
@@ -23,8 +23,8 @@ class VirtualClient {
           // Wait until other clients have connected the server.
           setTimeout(() => {
             this.timer = process.hrtime()
-            this.sendMessage(ws, 'content 1')
-          }, 1000)
+            this.sendMessage(ws, 'message content')
+          }, 1000 + this.id * 5)
         })
 
         ws.on('message', (message) => {
@@ -66,4 +66,4 @@ class VirtualClient {
   }
 }
 
-module.exports = VirtualClient
+module.exports = WsClient

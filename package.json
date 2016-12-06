@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node server/server.js",
-    "stress-ws": "node server/stress-tester.js",
-    "stress-http": "artillery quick -o artillery_test_results.json -p \"{\\\"author\\\": \\\"username\\\", \\\"content\\\": \\\"message content\\\", \\\"messageType\\\": \\\"msg\\\"}\" -t \"application/json\" http://localhost:8000/long-poll"
+    "stress-ws": "node server/stress-tester.js --ws",
+    "stress-http": "node server/stress-tester.js --http"
   },
   "dependencies": {
     "body-parser": "^1.15.2",

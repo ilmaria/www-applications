@@ -1,8 +1,16 @@
 const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
-const VirtualClient = require('./virtual-client')
+const WsClient = require('./ws-client')
+const HttpClient = require('./http-client')
 
-const clientsPerCPUCore = 20
+const clientsPerCPUCore = 10
+let VirtualClient
+
+if (process.argv[2] === '--http') {
+  VirtualClient = HttpClient
+} else {
+  VirtualClient = WsClient
+}
 
 if (cluster.isMaster) {
   // Fork workers.

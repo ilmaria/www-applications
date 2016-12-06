@@ -208,7 +208,7 @@ function handleAck(messageId) {
       longPollChannel.emit('ack', message);
     }
 
-    //console.log('Sent an ack:', message);
+    console.log('Sent an ack:', message);
 
     delete messagesWaitingForAcks[messageId];
   }
