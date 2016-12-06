@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/server.js",
     "stress-ws": "node server/stress-tester.js --ws",
-    "stress-http": "node server/stress-tester.js --http"
+    "stress-http": "node server/stress-tester.js --http",
+    "loadtest": "node server/load-test.js"
   },
   "dependencies": {
     "body-parser": "^1.15.2",

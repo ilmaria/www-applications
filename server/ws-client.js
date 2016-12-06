@@ -2,7 +2,7 @@ const WebSocket = require('ws')
 const serverAddress = 'ws://localhost:8080'
 
 class WsClient {
-  constructor(id) {
+  constructor(id, clientCount) {
     this.id = id
     this.timer = null
     this.ackTime = 0
@@ -31,19 +31,15 @@ class WsClient {
           const msg = JSON.parse(message)
           if (msg.messageType === "msg") {
             this.sendAck(ws, msg.id)
-          } else if (msg.messageType === 'ack') {
-            const timeDiff = process.hrtime(this.timer)
-            // Time in milliseconds
-            this.ackTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
-
-            resolve({
-              ackTime: this.ackTime,
-              serverAckTime: this.serverAckTime
-            })
           } else if (msg.messageType === 'serverAck') {
             const timeDiff = process.hrtime(this.timer)
             // Time in milliseconds
             this.serverAckTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
+
+            resolve({
+              ackTime: 0,
+              serverAckTime: this.serverAckTime
+            })
           }
         })
       })

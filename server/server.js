@@ -46,7 +46,7 @@ app.get('/long-poll', (req, res) => {
     // send received message as json
     res.json(message)
 
-    console.log('Sent a long poll message:', message)
+    //console.log('Sent a long poll message:', message)
   })
 })
 
@@ -78,7 +78,7 @@ app.post('/long-poll', (req, res) => {
 
     setMessageToWaitForAcks("", message.id, "long poll");
 
-    console.log('Received a long poll message:\n-', message)
+    //console.log('Received a long poll message:\n-', message)
 
     broadcast(message)
   }
@@ -86,7 +86,7 @@ app.post('/long-poll', (req, res) => {
     // Just an empty object because the client expects json in the response
     res.json({});
 
-    console.log('Received an ack:', message);
+    //console.log('Received an ack:', message);
     handleAck(message.id);
   }
   res.status(200).end()
@@ -195,7 +195,7 @@ function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
 function handleAck(messageId) {
   messagesWaitingForAcks[messageId].acksRemaining -= 1;
 
-  if (messagesWaitingForAcks[messageId].acksRemaining === 0) {
+  if (messagesWaitingForAcks[messageId].acksRemaining <= 0) {
     const message = {
       id: messageId,
       messageType: "ack"
@@ -204,12 +204,15 @@ function handleAck(messageId) {
     if (messagesWaitingForAcks[messageId].connectionType === "websocket") {
       messagesWaitingForAcks[messageId].wsClient.send(JSON.stringify(message));
     }
-    else if (messagesWaitingForAcks[messageId].connectionType === "long poll") {
+    else if (messagesWaitingForAcks[messageId].connectionType === "long poll"
+            && longPollChannel.listenerCount('ack') > 0) {
       longPollChannel.emit('ack', message);
+      //console.log('Sent an ack:', message);
+      delete messagesWaitingForAcks[messageId];
+    } else {
+      setTimeout(function() {
+        handleAck(messageId);
+      }, 5);
     }
-
-    console.log('Sent an ack:', message);
-
-    delete messagesWaitingForAcks[messageId];
   }
 }

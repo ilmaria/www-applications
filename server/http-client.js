@@ -1,7 +1,7 @@
 const http = require('http')
 
 class HttpClient {
-  constructor(id) {
+  constructor(id, clientCount) {
     this.id = id
     this.timer = null
     this.ackTime = 0
@@ -21,24 +21,20 @@ class HttpClient {
             const timeDiff = process.hrtime(this.timer)
             // Time in milliseconds
             this.serverAckTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
-
-            this.get(`http://localhost:8000/long-poll-ack?id=${resp.id}`, (resp) => {
-              if (resp.messageType === 'ack') {
-                const timeDiff = process.hrtime(this.timer)
-                this.ackTime = timeDiff[0] * 1e3 + timeDiff[1] / 1e6
-                resolve({
-                  ackTime: this.ackTime,
-                  serverAckTime: this.serverAckTime
-                })
-              }
+            resolve({
+              ackTime: 0,
+              serverAckTime: this.serverAckTime
             })
           }
         })
-      }, this.id * 5)
+      }, 1000 + this.id * 5)
 
       this.onMessage((msg) => {
         if (msg.messageType === "msg") {
-          this.sendAck()
+          this.sendMessage(JSON.stringify({
+            id: msg.id,
+            messageType: 'ack'
+          }))
         }
       })
     })
@@ -68,14 +64,14 @@ class HttpClient {
             resolve(parsedData)
           } catch (e) {
             console.log(e.message)
-            reject(e)
+            process.exit()
           }
         })
       })
 
       req.on('error', (e) => {
-        console.log(`Got error: ${e.message}`)
-        reject(e)
+        console.log(`sendMessage() error: ${e.message}`)
+        process.exit()
       })
 
       // write data to request body
@@ -84,21 +80,16 @@ class HttpClient {
     })
   }
 
-  sendAck() {
-    this.sendMessage(JSON.stringify({
-      id: this.id,
-      messageType: 'ack'
-    }))
-  }
-
   onMessage(callback) {
-    this.get('http://localhost:8000/long-poll', (response) => {
-      callback(response)
-      this.onMessage(callback)
+    return new Promise((resolve, reject) => {
+      this.get('http://localhost:8000/long-poll', (response) => {
+        callback(response)
+        this.onMessage(callback)
+      }, reject)
     })
   }
 
-  get(url, callback) {
+  get(url, callback, errCallback) {
     http.get(url, (res) => {
       const statusCode = res.statusCode
       const contentType = res.headers['content-type']
@@ -130,7 +121,8 @@ class HttpClient {
         }
       })
     }).on('error', (e) => {
-      console.log(`Got error: ${e.message}`)
+      console.log(`get()         error: ${e.message}`)
+      process.exit()
     })
   }
 }
