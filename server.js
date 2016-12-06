@@ -245,7 +245,7 @@ function setMessageToWaitForAcks(wsClient, messageId, connectionType) {
 function handleAck(messageId) {
   messagesWaitingForAcks[messageId].acksRemaining -= 1;
 
-  if (messagesWaitingForAcks[messageId].acksRemaining === 0) {
+  if (messagesWaitingForAcks[messageId].acksRemaining <= 0) {
     const message = {
       id: messageId,
       messageType: "ack"
@@ -253,13 +253,23 @@ function handleAck(messageId) {
 
     if (messagesWaitingForAcks[messageId].connectionType === "websocket") {
       messagesWaitingForAcks[messageId].wsClient.send(JSON.stringify(message));
+      console.log('Sent an ack:', message);
+      delete messagesWaitingForAcks[messageId];
     }
-    else if (messagesWaitingForAcks[messageId].connectionType === "long poll") {
+    else if (messagesWaitingForAcks[messageId].connectionType === "long poll" && longPollChannel.listenerCount('ack') > 0) {
       longPollChannel.emit('ack', message);
+      console.log('Sent an ack:', message);
+      delete messagesWaitingForAcks[messageId];
+    }
+    else {
+      setTimeout(function() {
+        handleAck(messageId);
+      }, 5);
+      
     }
 
-    console.log('Sent an ack:', message);
+    
 
-    delete messagesWaitingForAcks[messageId];
+    
   }
 }
