@@ -130,12 +130,22 @@ function WebsocketConnection() {
 function LongPollConnection() {
   var connection = {
     send: function(message) {
+      var headers;
+      if (message instanceof Blob === false) {
+        headers = new Headers({'Content-Type': "application/json"});
+        message = JSON.stringify(message);
+      }
+      else {
+        contentType = null;
+        var form = new FormData();
+        form.append('file', message);
+        message = form;
+      }
+
       fetch("/long-poll", {
         method: "post",
-        headers: new Headers({
-          'Content-Type': "application/json"
-        }),
-        body: JSON.stringify(message)
+        headers: headers,
+        body: message
       })
         .then(function(response) {
           return response.json();
@@ -224,6 +234,20 @@ function displayFile(file) {
 
 function storeFileInfo(fileInfo) {
   fileInfos.push(fileInfo);
+  if (fileInfo.path !== undefined) {
+    getFile(fileInfo.path);
+  }
+}
+
+// When file has been uploaded with long poll the file has to be fetched from the URL given
+function getFile(path) {
+  fetch(location.origin + "/" + path)
+    .then(function(response) {
+      return response.blob();
+    })
+    .then(function(blob) {
+      displayFile(blob);
+    })
 }
 
 function sendMessage() {

@@ -4,6 +4,8 @@ const express = require('express')
 const app = express()
 const WebSocketServer = require('ws').Server
 const bodyParser = require('body-parser')
+var multipart = require('connect-multiparty');
+var multipartMiddleware = multipart({ uploadDir: './files' });
 
 const httpPort = 8000
 const wsPort = 8080
@@ -30,6 +32,8 @@ var fileInfos = [];
 // HTTP
 //----------------------------------
 app.use(express.static('client'))
+
+app.use('/files', express.static('files'))
 
 // needed for parsing long poll body data 
 app.use(bodyParser.json())
@@ -68,7 +72,7 @@ app.get('/long-poll-ack', (req, res) => {
 /**
  * Clients use POST request for sending long poll messages.
  */
-app.post('/long-poll', (req, res) => {
+app.post('/long-poll', multipartMiddleware, (req, res) => {
   var message = req.body
 
   if (message.messageType === "msg") {
@@ -85,8 +89,9 @@ app.post('/long-poll', (req, res) => {
     broadcast(message)
   }
   else if (message.messageType === "fileInfo") {
-    //fileInfos.push(message);
+    fileInfos.push(message);
     res.json({});
+    console.log('Received a long poll file info:\n-', message)
   }
   else if (message.messageType === "ack") {
     // Just an empty object because the client expects json in the response
@@ -96,8 +101,10 @@ app.post('/long-poll', (req, res) => {
     handleAck(message.id);
   }
   else {
-    /*if (fileInfos.length > 0) {
+    console.log('Received a file:', req.files.file);
+    if (fileInfos.length > 0) {
       var fileInfo = fileInfos[0];
+      fileInfo.path = req.files.file.path;
 
       // Add ID to the message to track when everyone has received it
       fileInfo.id = messageId;
@@ -108,11 +115,9 @@ app.post('/long-poll', (req, res) => {
       setMessageToWaitForAcks("", fileInfo.id, "long poll");
 
       broadcast(fileInfo);
-      broadcastFile(message);
 
       fileInfos.shift();
-    }*/
-    res.json({});
+    }
   }
   res.status(200).end()
 })
@@ -202,9 +207,6 @@ function broadcastFile(file) {
 
     console.log('Sent a websocket file:', file);
   }
-
-  // send file to long poll clients
-  longPollChannel.emit('message', file);
 }
 
 // Notify the client that the server has received the message
