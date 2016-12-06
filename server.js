@@ -7,7 +7,7 @@ const bodyParser = require('body-parser')
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart({ uploadDir: './files' });
 
-const httpPort = 8000
+const httpPort = process.env.PORT || 8000
 const wsPort = 8080
 
 const longPollChannel = new EventEmitter()
