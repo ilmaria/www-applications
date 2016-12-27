@@ -1,3 +1,4 @@
 node_modules
 artillery_test_results.json
 npm-debug.log
+.vscode

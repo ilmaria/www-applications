@@ -1,0 +1,2 @@
+Ubuntu 16.04
+Intel® Core™ i5-6200U CPU @ 2.30GHz × 4

@@ -2,7 +2,7 @@ const http = require('http')
 const EventEmitter = require('events').EventEmitter
 const express = require('express')
 const app = express()
-const WebSocketServer = require('ws').Server
+const WebSocketServer = require('uws').Server
 const bodyParser = require('body-parser')
 
 const httpPort = 8000
@@ -140,7 +140,7 @@ wsServer.on('connection', (ws) => {
  */
 function broadcast(message) {
   // send message to websocket clients
-  for (const client of wsServer.clients) {
+  wsServer.clients.forEach((client) => {
     try {
       // websockets can only send string or blob data, so
       // we need to turn javascript objects into string
@@ -151,7 +151,7 @@ function broadcast(message) {
       console.log('Error while sending a websocket message:', err)
     }
 
-  }
+  })
 
   // send message to long poll clients
   longPollChannel.emit('message', message)
@@ -202,7 +202,7 @@ function handleAck(messageId) {
     };
 
     if (messagesWaitingForAcks[messageId].connectionType === "websocket") {
-      messagesWaitingForAcks[messageId].wsClient.send(JSON.stringify(message));
+      //messagesWaitingForAcks[messageId].wsClient.send(JSON.stringify(message));
     }
     else if (messagesWaitingForAcks[messageId].connectionType === "long poll"
             && longPollChannel.listenerCount('ack') > 0) {

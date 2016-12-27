@@ -15,7 +15,9 @@ if (process.argv[2] === '--http') {
   resultFile = 'stress-test-results-ws.csv'
 }
 
-const clientsPerCPUCore = Number(process.argv[3])
+const totalClients = Number(process.argv[3])
+const clientsPerCPUCore = Math.floor(totalClients / numCPUs)
+const extraClients = totalClients % numCPUs
 
 if (cluster.isMaster) {
   // Fork workers.
@@ -40,7 +42,7 @@ if (cluster.isMaster) {
       const sum = avgTimes.reduce((a, b) => a + b)
       const avgTime = (sum / avgTimes.length).toFixed(2)
 
-      fs.writeFileSync(resultFile, `${clientsPerCPUCore},${avgTime}\n`, {flag: 'a'})
+      fs.writeFileSync(resultFile, `${totalClients},${avgTime}\n`, {flag: 'a'})
       process.exit()
     }
   })
@@ -52,15 +54,20 @@ if (cluster.isMaster) {
       process.exit()
     }
   })
+
+  spawnClients(extraClients)
 } else {
+  spawnClients(clientsPerCPUCore)
+}
+
+function spawnClients(clients) {
   let totalAckTime = 0
   let totalServerAckTime = 0
   let clientsDone = []
-
-  for (let i = 0; i < clientsPerCPUCore; i++) {
+  const id = cluster.isWorker ? cluster.worker.id : 0
+  for (let i = 0; i < clients; i++) {
     // Start a virtual client that sends and receives messages from the server.
-    const client = new VirtualClient((cluster.worker.id - 1) * clientsPerCPUCore + i,
-      clientsPerCPUCore)
+    const client = new VirtualClient(id  * clients + i, clients)
 
     let clientDone = client.waitUntilDone().then(({ackTime, serverAckTime}) => {
       totalAckTime += ackTime
@@ -73,10 +80,12 @@ if (cluster.isMaster) {
   Promise.all(clientsDone).then(() => {
     // Send results to master
     process.send({
-      avgAckTime: totalAckTime / clientsPerCPUCore,
-      avgServerAckTime: totalServerAckTime / clientsPerCPUCore
+      avgAckTime: totalAckTime / clients,
+      avgServerAckTime: totalServerAckTime / clients
     })
   }).catch(err => {
-    worker.kill()
+    if (!cluster.isMaster) {
+      worker.kill()
+    }
   })
 }
