@@ -84,7 +84,7 @@ function toggleConnectionType(newConnectionName) {
  *                                  ('websocket' or 'long poll').
  */
 function WebsocketConnection() {
-  var ws = new WebSocket("ws:localhost:8080")
+  var ws = new WebSocket("ws:" + window.location.hostname + ":8080")
   
   var connection = {
     send: function(message) {
